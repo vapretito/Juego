@@ -105,7 +105,6 @@ const keys = {};
 document.addEventListener("keydown", e => keys[e.code] = true);
 document.addEventListener("keyup", e => keys[e.code] = false);
 
-// Controles táctiles para móvil
 document.getElementById("btnLeft").addEventListener("touchstart", () => keys["ArrowLeft"] = true);
 document.getElementById("btnLeft").addEventListener("touchend", () => keys["ArrowLeft"] = false);
 document.getElementById("btnRight").addEventListener("touchstart", () => keys["ArrowRight"] = true);
@@ -121,25 +120,29 @@ function ajustarCanvas() {
   canvas.height = alturaReal;
 }
 
-
 function generarNiveles() {
   niveles = [];
   for (let i = 0; i < 7; i++) {
     const plataformas = [];
     plataformas.push({ x: 0, y: canvas.height - 50, width: canvas.width, height: 50 });
 
-    const cantidad = Math.floor(Math.random() * 3) + 2;
-    for (let j = 0; j < cantidad; j++) {
-      const width = Math.floor(Math.random() * 100) + 60;
-      const x = Math.floor(Math.random() * (canvas.width - width));
-      const y = Math.floor(Math.random() * (canvas.height - 200)) + 100;
-      plataformas.push({ x, y, width, height: 20 });
+    const escalones = Math.floor(Math.random() * 4) + 3; // entre 3 y 6 plataformas
+    let stepX = 80;
+    let stepY = 60;
+    let px = 80;
+    let py = canvas.height - 120;
+
+    for (let j = 0; j < escalones; j++) {
+      const width = 100;
+      plataformas.push({ x: px, y: py, width: width, height: 20 });
+      px += width + Math.floor(Math.random() * 60 + 40);
+      py -= stepY + Math.floor(Math.random() * 20);
     }
 
-    const plataformaMoneda = plataformas[Math.floor(Math.random() * (plataformas.length - 1)) + 1];
+    const last = plataformas[plataformas.length - 1];
     const coin = {
-      x: plataformaMoneda.x + plataformaMoneda.width / 2 - 10,
-      y: plataformaMoneda.y - 20,
+      x: last.x + last.width / 2 - 10,
+      y: last.y - 20,
       width: 20,
       height: 20,
       collected: false
@@ -263,7 +266,7 @@ function siguienteNivel() {
 function iniciarJuego() {
   ajustarCanvas();
   setTimeout(() => {
-    ajustarCanvas(); // asegurar altura real
+    ajustarCanvas();
     generarNiveles();
     cargarNivel(nivelActual);
     loop();
