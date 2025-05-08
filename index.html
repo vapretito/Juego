@@ -86,7 +86,6 @@
 <script>
 const canvas = document.getElementById("juego");
 const ctx = canvas.getContext("2d");
-
 let juegoPausado = false;
 let niveles = [], nivelActual = 0;
 let platforms = [], coin = {}, enemy = {};
@@ -116,7 +115,14 @@ document.getElementById("btnJump").addEventListener("touchstart", () => {
 });
 document.getElementById("btnJump").addEventListener("touchend", () => keys["Space"] = false);
 
+function ajustarCanvas() {
+  const altura = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  canvas.width = window.innerWidth;
+  canvas.height = altura;
+}
+
 function generarNiveles() {
+  niveles = [];
   for (let i = 0; i < 7; i++) {
     const plataformas = [];
     plataformas.push({ x: 0, y: canvas.height - 50, width: canvas.width, height: 50 });
@@ -253,28 +259,18 @@ function siguienteNivel() {
   }
 }
 
-function ajustarCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-
 function iniciarJuego() {
   ajustarCanvas();
   setTimeout(() => {
-    ajustarCanvas(); // Reajustar por si hubo retraso en móviles
+    ajustarCanvas(); // asegurar altura real
     generarNiveles();
     cargarNivel(nivelActual);
     loop();
-  }, 100); // Esperar un poco para que canvas.height sea correcto
+  }, 100);
 }
 
 window.addEventListener("load", iniciarJuego);
 window.addEventListener("resize", ajustarCanvas);
-
-window.addEventListener("resize", () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-});
 </script>
 </body>
 </html>
