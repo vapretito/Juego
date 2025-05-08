@@ -4,25 +4,19 @@
   <meta charset="UTF-8" />
   <title>Mario JS</title>
   <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+    }
+
     canvas {
       background: #87CEEB;
       display: block;
-      margin: 0 auto;
-      border: 2px solid black;
+      width: 100vw;
+      height: 100vh;
     }
-    html, body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  height: 100%;
-}
-
-canvas {
-  width: 100vw;
-  height: 100vh;
-  display: block;
-}
-
 
     #modalNivel {
       display: none;
@@ -51,64 +45,56 @@ canvas {
       font-size: 18px;
       cursor: pointer;
     }
+
     #controles {
-  position: fixed;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  display: flex;
-  gap: 20px;
-}
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      gap: 20px;
+    }
 
-#controles button {
-  font-size: 28px;
-  padding: 16px 24px;
-  border: none;
-  border-radius: 12px;
-  background-color: #333;
-  color: white;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.5);
-}
-
+    #controles button {
+      font-size: 28px;
+      padding: 16px 24px;
+      border: none;
+      border-radius: 12px;
+      background-color: #333;
+      color: white;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    }
   </style>
 </head>
 <body>
   <canvas id="juego"></canvas>
+
   <div id="controles">
     <button id="btnLeft">◀️</button>
     <button id="btnJump">⤒</button>
     <button id="btnRight">▶️</button>
   </div>
-  
 
-<!-- Modal -->
-<div id="modalNivel">
-  <div>
-    <p>¡Nivel completado!</p>
-    <button onclick="siguienteNivel()">Siguiente Nivel</button>
+  <div id="modalNivel">
+    <div>
+      <p>¡Nivel completado!</p>
+      <button onclick="siguienteNivel()">Siguiente Nivel</button>
+    </div>
   </div>
-</div>
 
 <script>
 const canvas = document.getElementById("juego");
 const ctx = canvas.getContext("2d");
 
-// Ajustar tamaño real del canvas al tamaño de la pantalla
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-window.addEventListener('resize', () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-});
+let juegoPausado = false;
+let niveles = [], nivelActual = 0;
+let platforms = [], coin = {}, enemy = {};
 
-
-// Cargar imágenes
 const marioImg = new Image(); marioImg.src = "img/mario.gif";
 const coinImg = new Image();  coinImg.src = "img/coin.png";
 const enemyImg = new Image(); enemyImg.src = "img/enemy.png";
 
-// Jugador
 const player = {
   x: 50, y: 0, width: 40, height: 40,
   vx: 0, vy: 0,
@@ -116,26 +102,30 @@ const player = {
   score: 0
 };
 
-// Niveles
-let niveles = [];
-let nivelActual = 0;
-let platforms = [];
-let coin = {};
-let enemy = {};
+const keys = {};
+document.addEventListener("keydown", e => keys[e.code] = true);
+document.addEventListener("keyup", e => keys[e.code] = false);
 
-// 🔁 Generar 7 niveles únicos aleatorios
+// Controles táctiles para móvil
+document.getElementById("btnLeft").addEventListener("touchstart", () => keys["ArrowLeft"] = true);
+document.getElementById("btnLeft").addEventListener("touchend", () => keys["ArrowLeft"] = false);
+document.getElementById("btnRight").addEventListener("touchstart", () => keys["ArrowRight"] = true);
+document.getElementById("btnRight").addEventListener("touchend", () => keys["ArrowRight"] = false);
+document.getElementById("btnJump").addEventListener("touchstart", () => {
+  if (player.onGround) keys["Space"] = true;
+});
+document.getElementById("btnJump").addEventListener("touchend", () => keys["Space"] = false);
+
 function generarNiveles() {
   for (let i = 0; i < 7; i++) {
     const plataformas = [];
-
     plataformas.push({ x: 0, y: canvas.height - 50, width: canvas.width, height: 50 });
-
 
     const cantidad = Math.floor(Math.random() * 3) + 2;
     for (let j = 0; j < cantidad; j++) {
       const width = Math.floor(Math.random() * 100) + 60;
-      const x = Math.floor(Math.random() * (800 - width));
-      const y = Math.floor(Math.random() * 200) + 100;
+      const x = Math.floor(Math.random() * (canvas.width - width));
+      const y = Math.floor(Math.random() * (canvas.height - 200)) + 100;
       plataformas.push({ x, y, width, height: 20 });
     }
 
@@ -149,7 +139,7 @@ function generarNiveles() {
     };
 
     const enemy = {
-      x: Math.floor(Math.random() * 700) + 50,
+      x: Math.floor(Math.random() * (canvas.width - 50)),
       y: canvas.height - 90,
       width: 40,
       height: 40,
@@ -170,43 +160,20 @@ function cargarNivel(n) {
   player.vx = 0;
   player.vy = 0;
 }
-// Controles
-const keys = {};
-document.addEventListener("keydown", e => keys[e.code] = true);
-document.addEventListener("keyup", e => keys[e.code] = false);
 
-// Actualización
 function update() {
-  // Movimiento
   if (keys["ArrowLeft"]) player.vx = -5;
   if (keys["ArrowRight"]) player.vx = 5;
   if (keys["Space"] && player.onGround) {
     player.vy = -15;
     player.onGround = false;
   }
-// Controles táctiles para móvil
-document.getElementById("btnLeft").addEventListener("touchstart", () => keys["ArrowLeft"] = true);
-document.getElementById("btnLeft").addEventListener("touchend", () => keys["ArrowLeft"] = false);
 
-document.getElementById("btnRight").addEventListener("touchstart", () => keys["ArrowRight"] = true);
-document.getElementById("btnRight").addEventListener("touchend", () => keys["ArrowRight"] = false);
-
-document.getElementById("btnJump").addEventListener("touchstart", () => {
-  if (player.onGround) {
-    keys["Space"] = true;
-  }
-});
-document.getElementById("btnJump").addEventListener("touchend", () => {
-  keys["Space"] = false;
-});
-
-  // Física
   player.vy += 0.8;
   player.x += player.vx;
   player.y += player.vy;
   player.vx *= 0.9;
 
-  // Colisiones con plataformas
   player.onGround = false;
   platforms.forEach(p => {
     if (
@@ -223,7 +190,6 @@ document.getElementById("btnJump").addEventListener("touchend", () => {
     }
   });
 
-  // Moneda
   if (!coin.collected &&
       player.x < coin.x + coin.width &&
       player.x + player.width > coin.x &&
@@ -231,14 +197,12 @@ document.getElementById("btnJump").addEventListener("touchend", () => {
       player.y + player.height > coin.y) {
     coin.collected = true;
     player.score += 1;
-
     juegoPausado = true;
     setTimeout(() => {
       document.getElementById("modalNivel").style.display = "flex";
     }, 300);
   }
 
-  // Enemigo
   enemy.x += enemy.dir * 2;
   if (enemy.x <= 0 || enemy.x + enemy.width >= canvas.width) enemy.dir *= -1;
 
@@ -253,32 +217,21 @@ document.getElementById("btnJump").addEventListener("touchend", () => {
   }
 }
 
-// Dibujar
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Plataformas
   ctx.fillStyle = "#228B22";
   platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
 
-  // Jugador
   ctx.drawImage(marioImg, player.x, player.y, player.width, player.height);
-
-  // Moneda
-  if (!coin.collected) {
-    ctx.drawImage(coinImg, coin.x, coin.y, coin.width, coin.height);
-  }
-
-  // Enemigo
+  if (!coin.collected) ctx.drawImage(coinImg, coin.x, coin.y, coin.width, coin.height);
   ctx.drawImage(enemyImg, enemy.x, enemy.y, enemy.width, enemy.height);
 
-  // Puntaje
   ctx.fillStyle = "black";
   ctx.font = "20px Arial";
   ctx.fillText("Puntaje: " + player.score, 10, 25);
 }
 
-// Bucle
 function loop() {
   if (!juegoPausado) {
     update();
@@ -287,7 +240,6 @@ function loop() {
   }
 }
 
-// Siguiente nivel
 function siguienteNivel() {
   nivelActual++;
   if (nivelActual >= niveles.length) {
@@ -301,12 +253,19 @@ function siguienteNivel() {
   }
 }
 
-// Iniciar juego
-generarNiveles(); // ← genera los niveles aleatorios
-let juegoPausado = false;
+function iniciarJuego() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  generarNiveles();
+  cargarNivel(nivelActual);
+  loop();
+}
 
-cargarNivel(nivelActual);
-loop();
+window.addEventListener("load", iniciarJuego);
+window.addEventListener("resize", () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
 </script>
 </body>
 </html>
