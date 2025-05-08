@@ -116,10 +116,11 @@ document.getElementById("btnJump").addEventListener("touchstart", () => {
 document.getElementById("btnJump").addEventListener("touchend", () => keys["Space"] = false);
 
 function ajustarCanvas() {
-  const altura = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const alturaReal = document.documentElement.clientHeight;
   canvas.width = window.innerWidth;
-  canvas.height = altura;
+  canvas.height = alturaReal;
 }
+
 
 function generarNiveles() {
   niveles = [];
