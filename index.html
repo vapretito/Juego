@@ -46,25 +46,7 @@
       cursor: pointer;
     }
 
-    #controles {
-      position: fixed;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      display: flex;
-      gap: 20px;
-    }
 
-    #controles button {
-      font-size: 28px;
-      padding: 16px 24px;
-      border: none;
-      border-radius: 12px;
-      background-color: #333;
-      color: white;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
-    }
   </style>
 </head>
 <body>
@@ -85,6 +67,15 @@
 
 
 <script>
+  const fondoCapas = [];
+const fondoVelocidades = [];
+const totalCapas = 12;
+for (let i = 0; i < totalCapas; i++) {
+  const img = new Image();
+  img.src = "parallax_layers/layer_" + String(i).padStart(2, "0") + ".png";
+  fondoCapas.push(img);
+  fondoVelocidades.push(0.2 + i * 0.15);
+}
 const canvas = document.getElementById("juego");
 const ctx = canvas.getContext("2d");
 let juegoPausado = false;
@@ -103,6 +94,7 @@ const player = {
   onGround: false,
   score: 0
 };
+
 
 const keys = {};
 document.addEventListener("keydown", e => keys[e.code] = true);
@@ -129,7 +121,7 @@ function generarNiveles() {
     const plataformas = [];
     plataformas.push({ x: 0, y: canvas.height - 50, width: canvas.width, height: 50 });
 
-    const escalones = Math.floor(Math.random() * 4) + 3; // entre 3 y 6 plataformas
+    const escalones = Math.floor(Math.random() * 4) + 3;
     let stepX = 80;
     let stepY = 60;
     let px = 80;
@@ -150,27 +142,37 @@ function generarNiveles() {
       height: 20,
       collected: false
     };
-// Plataforma móvil fija por nivel
-plataformaMovil = {
-  x: 200,
-  y: canvas.height - 200,
-  width: 100,
-  height: 20,
-  dir: 1,
-  speed: 2,
-  minX: 100,
-  maxX: canvas.width - 200
-};
 
-    const enemy = {
-      x: Math.floor(Math.random() * (canvas.width - 50)),
-      y: canvas.height - 90,
-      width: 40,
-      height: 40,
-      dir: Math.random() < 0.5 ? -1 : 1
+    plataformaMovil = {
+      x: 200,
+      y: canvas.height - 200,
+      width: 100,
+      height: 20,
+      dir: 1,
+      speed: 2 + i,  // más velocidad por nivel
+      minX: 100,
+      maxX: canvas.width - 200
     };
 
-    niveles.push({ plataformas, coin, enemy });
+    // Generar múltiples enemigos con dificultad creciente
+    const enemigos = [];
+    const cantidad = 1 + Math.floor(i / 2);
+    for (let e = 0; e < cantidad; e++) {
+      // Dentro de generarNiveles, cuando se crean los enemigos, agregar:
+enemigos.push({
+  x: Math.floor(Math.random() * (canvas.width - 50)),
+  y: -Math.random() * 200 - 40,
+  width: 40,
+  height: 40,
+  dir: Math.random() < 0.5 ? -1 : 1,
+  velocidad: 2 + i * 0.5,
+  vy: 0,
+  enSuelo: false,
+  tiempoNacimiento: Date.now()
+});
+    }
+
+    niveles.push({ plataformas, coin, enemigos });
   }
 }
 
@@ -178,7 +180,7 @@ function cargarNivel(n) {
   const nivel = niveles[n];
   platforms = nivel.plataformas;
   coin = { ...nivel.coin };
-  enemy = { ...nivel.enemy };
+  enemigos = nivel.enemigos;
   player.x = 50;
   player.y = canvas.height / 2;
   player.vx = 0;
@@ -186,12 +188,14 @@ function cargarNivel(n) {
 }
 
 function update() {
+  
   if (plataformaMovil) {
-  plataformaMovil.x += plataformaMovil.dir * plataformaMovil.speed;
-  if (plataformaMovil.x <= plataformaMovil.minX || plataformaMovil.x + plataformaMovil.width >= plataformaMovil.maxX) {
-    plataformaMovil.dir *= -1;
+    plataformaMovil.x += plataformaMovil.dir * plataformaMovil.speed;
+    if (plataformaMovil.x <= plataformaMovil.minX || plataformaMovil.x + plataformaMovil.width >= plataformaMovil.maxX) {
+      plataformaMovil.dir *= -1;
+    }
   }
-}
+
   if (keys["ArrowLeft"]) player.vx = -5;
   if (keys["ArrowRight"]) player.vx = 5;
   if (keys["Space"] && player.onGround) {
@@ -205,6 +209,9 @@ function update() {
   player.vx *= 0.9;
 
   player.onGround = false;
+
+  // PLATAFORMAS NORMALES Y QUE CAEN
+  platforms = platforms.filter(p => !p.caida || Date.now() - p.tiempoPisado < 1000);
   platforms.forEach(p => {
     if (
       player.x < p.x + p.width &&
@@ -216,23 +223,30 @@ function update() {
         player.y = p.y - player.height;
         player.vy = 0;
         player.onGround = true;
+
+        if (p.desmoronable && !p.tiempoPisado) {
+          p.tiempoPisado = Date.now();
+          p.caida = true;
+        }
       }
     }
   });
+
+  // Plataforma móvil
   if (
-  player.x < plataformaMovil.x + plataformaMovil.width &&
-  player.x + player.width > plataformaMovil.x &&
-  player.y < plataformaMovil.y + plataformaMovil.height &&
-  player.y + player.height > plataformaMovil.y
-) {
-  if (player.vy > 0) {
-    player.y = plataformaMovil.y - player.height;
-    player.vy = 0;
-    player.onGround = true;
+    player.x < plataformaMovil.x + plataformaMovil.width &&
+    player.x + player.width > plataformaMovil.x &&
+    player.y < plataformaMovil.y + plataformaMovil.height &&
+    player.y + player.height > plataformaMovil.y
+  ) {
+    if (player.vy > 0) {
+      player.y = plataformaMovil.y - player.height;
+      player.vy = 0;
+      player.onGround = true;
+    }
   }
-}
 
-
+  // Recolección de moneda
   if (!coin.collected &&
       player.x < coin.x + coin.width &&
       player.x + player.width > coin.x &&
@@ -246,32 +260,115 @@ function update() {
     }, 300);
   }
 
-  enemy.x += enemy.dir * 2;
-  if (enemy.x <= 0 || enemy.x + enemy.width >= canvas.width) enemy.dir *= -1;
+  // Enemigos
+  enemigos.forEach(enemigo => {
+    // Gravedad
+    enemigo.vy += 0.6;
+    enemigo.y += enemigo.vy;
+    enemigo.enSuelo = false;
+    const ahora = Date.now();
+if (!enemigo.yaDuplicado && ahora - enemigo.tiempoNacimiento > 10000) {
+  enemigos.push({
+    ...enemigo,
+    x: enemigo.x + 20,
+    y: enemigo.y,
+    tiempoNacimiento: ahora,
+    yaDuplicado: true // Evitar duplicación infinita
+  });
+  enemigo.yaDuplicado = true;
+}
+    
+    // Colisiones
+    platforms.forEach(p => {
+      // Salto inteligente para perseguir al jugador si está cerca y más alto
+const distanciaX = Math.abs(enemigo.x - player.x);
+const diferenciaAltura = enemigo.y - player.y;
 
-  if (
-    player.x < enemy.x + enemy.width &&
-    player.x + player.width > enemy.x &&
-    player.y < enemy.y + enemy.height &&
-    player.y + player.height > enemy.y
-  ) {
-    alert("¡Perdiste! Tu puntaje fue: " + player.score);
-    location.reload();
-  }
+if (
+  enemigo.enSuelo &&
+  distanciaX < 150 &&              // Solo si está relativamente cerca
+  diferenciaAltura > 30            // Y el jugador está más arriba
+) {
+  enemigo.vy = -12;
+  enemigo.enSuelo = false;
+}
+      if (
+        enemigo.x < p.x + p.width &&
+        enemigo.x + enemigo.width > p.x &&
+        enemigo.y + enemigo.height > p.y &&
+        enemigo.y + enemigo.height < p.y + p.height &&
+        enemigo.vy >= 0
+      ) {
+        enemigo.y = p.y - enemigo.height;
+        enemigo.vy = 0;
+        enemigo.enSuelo = true;
+      }
+    });
+
+    if (
+      enemigo.x < plataformaMovil.x + plataformaMovil.width &&
+      enemigo.x + enemigo.width > plataformaMovil.x &&
+      enemigo.y + enemigo.height > plataformaMovil.y &&
+      enemigo.y + enemigo.height < plataformaMovil.y + plataformaMovil.height &&
+      enemigo.vy >= 0
+    ) {
+      enemigo.y = plataformaMovil.y - enemigo.height;
+      enemigo.vy = 0;
+      enemigo.enSuelo = true;
+    }
+
+    // Movimiento hacia el jugador (persecución)
+    if (enemigo.enSuelo) {
+      enemigo.dir = player.x < enemigo.x ? -1 : 1;
+      enemigo.x += enemigo.dir * enemigo.velocidad;
+    }
+
+    // Reaparece si cae del canvas
+    if (enemigo.y > canvas.height + 50) {
+      enemigo.y = -Math.random() * 300;
+      enemigo.x = Math.random() * canvas.width;
+      enemigo.vy = 0;
+    }
+
+    // Colisión con jugador
+    if (
+      player.x < enemigo.x + enemigo.width &&
+      player.x + player.width > enemigo.x &&
+      player.y < enemigo.y + enemigo.height &&
+      player.y + player.height > enemigo.y
+    ) {
+      alert("¡Perdiste! Tu puntaje fue: " + player.score);
+      location.reload();
+    }
+  });
+
 }
 
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+// Dibujo del fondo parallax (al comienzo del draw)
+for (let i = 0; i < fondoCapas.length; i++) {
+  const capa = fondoCapas[i];
+  if (!capa.complete) continue;
+  const offsetX = -player.x * fondoVelocidades[i] % canvas.width;
+
+  // TEST: escalar cada capa con opacidad distinta
+  ctx.globalAlpha = 0.2; // ver a través
+  ctx.drawImage(capa, offsetX, 0, canvas.width, canvas.height);
+  ctx.drawImage(capa, offsetX + canvas.width, 0, canvas.width, canvas.height);
+}
+ctx.globalAlpha = 1.0; // restaurar opacidad normal
 
   ctx.fillStyle = "#228B22";
   platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
-  ctx.fillStyle = "#0055ff"; // color azul para distinguir
-ctx.fillRect(plataformaMovil.x, plataformaMovil.y, plataformaMovil.width, plataformaMovil.height);
-
+  ctx.fillStyle = "#0055ff";
+  ctx.fillRect(plataformaMovil.x, plataformaMovil.y, plataformaMovil.width, plataformaMovil.height);
 
   ctx.drawImage(marioImg, player.x, player.y, player.width, player.height);
   if (!coin.collected) ctx.drawImage(coinImg, coin.x, coin.y, coin.width, coin.height);
-  ctx.drawImage(enemyImg, enemy.x, enemy.y, enemy.width, enemy.height);
+
+  enemigos.forEach(enemigo => {
+    ctx.drawImage(enemyImg, enemigo.x, enemigo.y, enemigo.width, enemigo.height);
+  });
 
   ctx.fillStyle = "black";
   ctx.font = "20px Arial";
