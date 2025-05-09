@@ -83,12 +83,15 @@
     </div>
   </div>
 
+
 <script>
 const canvas = document.getElementById("juego");
 const ctx = canvas.getContext("2d");
 let juegoPausado = false;
 let niveles = [], nivelActual = 0;
 let platforms = [], coin = {}, enemy = {};
+let plataformaMovil = null;
+
 
 const marioImg = new Image(); marioImg.src = "img/mario.gif";
 const coinImg = new Image();  coinImg.src = "img/coin.png";
@@ -147,6 +150,17 @@ function generarNiveles() {
       height: 20,
       collected: false
     };
+// Plataforma móvil fija por nivel
+plataformaMovil = {
+  x: 200,
+  y: canvas.height - 200,
+  width: 100,
+  height: 20,
+  dir: 1,
+  speed: 2,
+  minX: 100,
+  maxX: canvas.width - 200
+};
 
     const enemy = {
       x: Math.floor(Math.random() * (canvas.width - 50)),
@@ -172,6 +186,12 @@ function cargarNivel(n) {
 }
 
 function update() {
+  if (plataformaMovil) {
+  plataformaMovil.x += plataformaMovil.dir * plataformaMovil.speed;
+  if (plataformaMovil.x <= plataformaMovil.minX || plataformaMovil.x + plataformaMovil.width >= plataformaMovil.maxX) {
+    plataformaMovil.dir *= -1;
+  }
+}
   if (keys["ArrowLeft"]) player.vx = -5;
   if (keys["ArrowRight"]) player.vx = 5;
   if (keys["Space"] && player.onGround) {
@@ -199,6 +219,19 @@ function update() {
       }
     }
   });
+  if (
+  player.x < plataformaMovil.x + plataformaMovil.width &&
+  player.x + player.width > plataformaMovil.x &&
+  player.y < plataformaMovil.y + plataformaMovil.height &&
+  player.y + player.height > plataformaMovil.y
+) {
+  if (player.vy > 0) {
+    player.y = plataformaMovil.y - player.height;
+    player.vy = 0;
+    player.onGround = true;
+  }
+}
+
 
   if (!coin.collected &&
       player.x < coin.x + coin.width &&
@@ -232,6 +265,9 @@ function draw() {
 
   ctx.fillStyle = "#228B22";
   platforms.forEach(p => ctx.fillRect(p.x, p.y, p.width, p.height));
+  ctx.fillStyle = "#0055ff"; // color azul para distinguir
+ctx.fillRect(plataformaMovil.x, plataformaMovil.y, plataformaMovil.width, plataformaMovil.height);
+
 
   ctx.drawImage(marioImg, player.x, player.y, player.width, player.height);
   if (!coin.collected) ctx.drawImage(coinImg, coin.x, coin.y, coin.width, coin.height);
